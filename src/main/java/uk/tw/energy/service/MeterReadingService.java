@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import uk.tw.energy.domain.ElectricityReading;
+import uk.tw.energy.util.MeterReadingValidator;
 
 @Service
 public class MeterReadingService {
@@ -24,6 +25,7 @@ public class MeterReadingService {
         if (!meterAssociatedReadings.containsKey(smartMeterId)) {
             meterAssociatedReadings.put(smartMeterId, new ArrayList<>());
         }
-        meterAssociatedReadings.get(smartMeterId).addAll(electricityReadings);
+        electricityReadings.stream().filter(MeterReadingValidator::isValid).
+                forEach(r->meterAssociatedReadings.get(smartMeterId).add(r));
     }
 }

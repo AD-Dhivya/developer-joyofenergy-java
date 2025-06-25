@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import uk.tw.energy.domain.ElectricityReading;
 import uk.tw.energy.domain.PricePlan;
+import uk.tw.energy.util.MeterReadingValidator;
 
 @Service
 public class PricePlanService {
@@ -32,7 +33,9 @@ public class PricePlanService {
         }
 
         return Optional.of(pricePlans.stream()
-                .collect(Collectors.toMap(PricePlan::getPlanName, t -> calculateCost(electricityReadings.get(), t))));
+                .collect(Collectors.toMap(PricePlan::getPlanName,
+                        t -> calculateCost(electricityReadings.get().
+                                stream().filter(MeterReadingValidator::isValid).toList(), t))));
     }
 
     private BigDecimal calculateCost(List<ElectricityReading> electricityReadings, PricePlan pricePlan) {
