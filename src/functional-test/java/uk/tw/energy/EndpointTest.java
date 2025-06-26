@@ -1,6 +1,7 @@
 package uk.tw.energy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -73,9 +74,16 @@ public class EndpointTest {
                 restTemplate.getForEntity("/price-plans/compare-all/" + smartMeterId, CompareAllResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody())
-                .isEqualTo(new CompareAllResponse(
-                        Map.of("price-plan-0", 36000, "price-plan-1", 7200, "price-plan-2", 3600), null));
+        CompareAllResponse actual = response.getBody();
+        Map<String, Double> expected = Map.of(
+                "price-plan-0", 1.111111111,
+                "price-plan-1", 0.222222222,
+                "price-plan-2", 0.111111111
+        );
+        double tolerance = 1e-7;
+        expected.forEach((plan, expValue) -> 
+            assertThat(actual.pricePlanComparisons().get(plan)).isCloseTo(expValue, within(tolerance))
+        );
     }
 
     @SuppressWarnings("rawtypes")
@@ -91,7 +99,18 @@ public class EndpointTest {
         ResponseEntity<Map[]> response =
                 restTemplate.getForEntity("/price-plans/recommend/" + smartMeterId + "?limit=2", Map[].class);
 
-        assertThat(response.getBody()).containsExactly(Map.of("price-plan-2", 3600), Map.of("price-plan-1", 7200));
+        Map[] actual = response.getBody();
+        Map<String, Double>[] expected = new Map[] {
+            Map.of("price-plan-2", 0.111111111),
+            Map.of("price-plan-1", 0.222222222)
+        };
+        double tolerance = 1e-7;
+        for (int i = 0; i < expected.length; i++) {
+            String plan = expected[i].keySet().iterator().next();
+            Double expValue = expected[i].get(plan);
+            Double actValue = ((Number) actual[i].get(plan)).doubleValue();
+            assertThat(actValue).isCloseTo(expValue, within(tolerance));
+        }
     }
 
     private void populateReadingsForMeter(String smartMeterId, List<ElectricityReading> data) {
@@ -101,5 +120,5 @@ public class EndpointTest {
         restTemplate.postForEntity("/readings/store", entity, String.class);
     }
 
-    record CompareAllResponse(Map<String, Integer> pricePlanComparisons, String pricePlanId) {}
+    record CompareAllResponse(Map<String, Double> pricePlanComparisons, String pricePlanId) {}
 }

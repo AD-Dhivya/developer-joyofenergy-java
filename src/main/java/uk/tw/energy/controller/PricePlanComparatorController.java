@@ -37,7 +37,7 @@ public class PricePlanComparatorController {
                 pricePlanService.getConsumptionCostOfElectricityReadingsForEachPricePlan(smartMeterId);
 
         if (!consumptionsForPricePlans.isPresent()) {
-            return ResponseEntity.notFound().build();
+            throw new IllegalArgumentException("No valid readings found for smartMeterId: " + smartMeterId);
         }
 
         Map<String, Object> pricePlanComparisons = new HashMap<>();
@@ -56,12 +56,16 @@ public class PricePlanComparatorController {
                 pricePlanService.getConsumptionCostOfElectricityReadingsForEachPricePlan(smartMeterId);
 
         if (!consumptionsForPricePlans.isPresent()) {
-            return ResponseEntity.notFound().build();
+            throw new IllegalArgumentException("No valid readings found for smartMeterId: " + smartMeterId);
         }
 
         List<Map.Entry<String, BigDecimal>> recommendations =
                 new ArrayList<>(consumptionsForPricePlans.get().entrySet());
         recommendations.sort(Comparator.comparing(Map.Entry::getValue));
+
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("Limit must be > 0");
+        }
 
         if (limit != null && limit < recommendations.size()) {
             recommendations = recommendations.subList(0, limit);

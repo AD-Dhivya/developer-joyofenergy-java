@@ -1,6 +1,7 @@
 package uk.tw.energy.controller;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -8,6 +9,7 @@ import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -59,14 +61,19 @@ public class PricePlanComparatorControllerTest {
                         WORST_PLAN_ID, BigDecimal.valueOf(100.0),
                         BEST_PLAN_ID, BigDecimal.valueOf(10.0),
                         SECOND_BEST_PLAN_ID, BigDecimal.valueOf(20.0)));
-        assertThat(response.getBody()).isEqualTo(expected);
+        @SuppressWarnings("unchecked")
+        Map<String, BigDecimal> actualComparisons = (Map<String, BigDecimal>) response.getBody().get(PricePlanComparatorController.PRICE_PLAN_COMPARISONS_KEY);
+        Map<String, BigDecimal> expectedComparisons = (Map<String, BigDecimal>) expected.get(PricePlanComparatorController.PRICE_PLAN_COMPARISONS_KEY);
+        assertThat(stripZeros(actualComparisons)).isEqualTo(stripZeros(expectedComparisons));
+        assertThat(response.getBody().get(PricePlanComparatorController.PRICE_PLAN_ID_KEY))
+            .isEqualTo(expected.get(PricePlanComparatorController.PRICE_PLAN_ID_KEY));
     }
 
     @Test
     public void calculatedCostForEachPricePlan_noReadings() {
-        ResponseEntity<Map<String, Object>> response = controller.calculatedCostForEachPricePlan("not-found");
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThrows(IllegalArgumentException.class, () -> {
+            controller.calculatedCostForEachPricePlan("not-found");
+        });
     }
 
     @Test
@@ -80,10 +87,11 @@ public class PricePlanComparatorControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         var expectedPricePlanToCost = List.of(
-                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(38.0)),
-                new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(76.0)),
-                new AbstractMap.SimpleEntry<>(WORST_PLAN_ID, BigDecimal.valueOf(380.0)));
-        assertThat(response.getBody()).isEqualTo(expectedPricePlanToCost);
+                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(9.5)),
+                new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(19.0)),
+                new AbstractMap.SimpleEntry<>(WORST_PLAN_ID, BigDecimal.valueOf(95.0))
+        );
+        assertThat(stripZeros(response.getBody())).isEqualTo(stripZeros(expectedPricePlanToCost));
     }
 
     @Test
@@ -96,9 +104,10 @@ public class PricePlanComparatorControllerTest {
                 controller.recommendCheapestPricePlans(SMART_METER_ID, 2);
 
         var expectedPricePlanToCost = List.of(
-                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(16.7)),
-                new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(33.4)));
-        assertThat(response.getBody()).isEqualTo(expectedPricePlanToCost);
+                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(9.375)),
+                new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(18.75))
+        );
+        assertThat(stripZeros(response.getBody())).isEqualTo(stripZeros(expectedPricePlanToCost));
     }
 
     @Test
@@ -114,6 +123,21 @@ public class PricePlanComparatorControllerTest {
                 new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(14.0)),
                 new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(28.0)),
                 new AbstractMap.SimpleEntry<>(WORST_PLAN_ID, BigDecimal.valueOf(140.0)));
-        assertThat(response.getBody()).isEqualTo(expectedPricePlanToCost);
+        assertThat(stripZeros(response.getBody())).isEqualTo(stripZeros(expectedPricePlanToCost));
+    }
+
+    // Helper methods for stripping trailing zeros from BigDecimal values in maps and lists
+    private static Map<String, BigDecimal> stripZeros(Map<String, BigDecimal> map) {
+        return map.entrySet().stream()
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                e -> e.getValue().stripTrailingZeros()
+            ));
+    }
+
+    private static List<Map.Entry<String, BigDecimal>> stripZeros(List<? extends Map.Entry<String, BigDecimal>> list) {
+        return list.stream()
+            .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().stripTrailingZeros()))
+            .collect(Collectors.toList());
     }
 }

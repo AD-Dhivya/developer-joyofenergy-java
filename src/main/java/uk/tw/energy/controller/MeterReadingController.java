@@ -2,6 +2,8 @@ package uk.tw.energy.controller;
 
 import java.util.List;
 import java.util.Optional;
+
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +27,7 @@ public class MeterReadingController {
     }
 
     @PostMapping("/store")
-    public ResponseEntity storeReadings(@RequestBody MeterReadings meterReadings) {
-        if (!isMeterReadingsValid(meterReadings)) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public ResponseEntity storeReadings(@Valid @RequestBody MeterReadings meterReadings) {
         meterReadingService.storeReadings(meterReadings.smartMeterId(), meterReadings.electricityReadings());
         return ResponseEntity.ok().build();
     }
@@ -45,8 +44,9 @@ public class MeterReadingController {
     @GetMapping("/read/{smartMeterId}")
     public ResponseEntity readReadings(@PathVariable String smartMeterId) {
         Optional<List<ElectricityReading>> readings = meterReadingService.getReadings(smartMeterId);
-        return readings.isPresent()
-                ? ResponseEntity.ok(readings.get())
-                : ResponseEntity.notFound().build();
+        if (readings.isEmpty()) {
+            throw new IllegalArgumentException("No readings found for smartMeterId: " + smartMeterId);
+        }
+        return  ResponseEntity.ok(readings.get());
     }
 }

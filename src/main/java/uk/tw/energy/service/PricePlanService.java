@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import uk.tw.energy.domain.ElectricityReading;
 import uk.tw.energy.domain.PricePlan;
-import uk.tw.energy.util.MeterReadingValidator;
 
 @Service
 public class PricePlanService {
@@ -33,36 +32,27 @@ public class PricePlanService {
         }
 
         return Optional.of(pricePlans.stream()
-                .collect(Collectors.toMap(PricePlan::getPlanName,
-                        t -> calculateCost(electricityReadings.get().
-                                stream().filter(MeterReadingValidator::isValid).toList(), t))));
+                .collect(Collectors.toMap(PricePlan::getPlanName, t -> calculateCost(electricityReadings.get(), t))));
     }
 
     private BigDecimal calculateCost(List<ElectricityReading> electricityReadings, PricePlan pricePlan) {
-        final BigDecimal averageReadingInKw = calculateAverageReading(electricityReadings);
-        final BigDecimal usageTimeInHours = calculateUsageTimeInHours(electricityReadings);
-        final BigDecimal energyConsumedInKwH = averageReadingInKw.divide(usageTimeInHours, RoundingMode.HALF_UP);
-        final BigDecimal cost = energyConsumedInKwH.multiply(pricePlan.getUnitRate());
-        return cost;
+        if (electricityReadings == null || electricityReadings.size() < 2) {
+            return BigDecimal.ZERO;
+        }
+        List<ElectricityReading> sortedReadings = electricityReadings.stream()
+                .sorted(Comparator.comparing(ElectricityReading::time))
+                .toList();
+
+        BigDecimal totalEnergy = BigDecimal.ZERO;
+        for (int i = 0; i < sortedReadings.size() - 1; i++) {
+            ElectricityReading r1 = sortedReadings.get(i);
+            ElectricityReading r2 = sortedReadings.get(i + 1);
+            BigDecimal avgPower = r1.reading().add(r2.reading()).divide(BigDecimal.valueOf(2), RoundingMode.HALF_UP);
+            long seconds = Duration.between(r1.time(), r2.time()).getSeconds();
+            BigDecimal hours = BigDecimal.valueOf(seconds).divide(BigDecimal.valueOf(3600), 10, RoundingMode.HALF_UP);
+            totalEnergy = totalEnergy.add(avgPower.multiply(hours));
+        }
+        return totalEnergy.multiply(pricePlan.getUnitRate());
     }
 
-    private BigDecimal calculateAverageReading(List<ElectricityReading> electricityReadings) {
-        BigDecimal summedReadings = electricityReadings.stream()
-                .map(ElectricityReading::reading)
-                .reduce(BigDecimal.ZERO, (reading, accumulator) -> reading.add(accumulator));
-
-        return summedReadings.divide(BigDecimal.valueOf(electricityReadings.size()), RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateUsageTimeInHours(List<ElectricityReading> electricityReadings) {
-        ElectricityReading first = electricityReadings.stream()
-                .min(Comparator.comparing(ElectricityReading::time))
-                .get();
-
-        ElectricityReading last = electricityReadings.stream()
-                .max(Comparator.comparing(ElectricityReading::time))
-                .get();
-
-        return BigDecimal.valueOf(Duration.between(first.time(), last.time()).getSeconds() / 3600.0);
-    }
 }
