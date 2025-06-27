@@ -104,7 +104,7 @@ public class PricePlanComparatorControllerTest {
                 controller.recommendCheapestPricePlans(SMART_METER_ID, 2);
 
         var expectedPricePlanToCost = List.of(
-                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(9.375)),
+                new AbstractMap.SimpleEntry<>(BEST_PLAN_ID, BigDecimal.valueOf(9.38)),
                 new AbstractMap.SimpleEntry<>(SECOND_BEST_PLAN_ID, BigDecimal.valueOf(18.75))
         );
         assertThat(stripZeros(response.getBody())).isEqualTo(stripZeros(expectedPricePlanToCost));

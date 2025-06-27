@@ -1,15 +1,24 @@
 package uk.tw.energy.domain;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class PricePlan {
-
+    @NotBlank
     private final String energySupplier;
+    @NotBlank
     private final String planName;
+    @NotNull @Positive
     private final BigDecimal unitRate; // unit price per kWh
+    @NotEmpty @Valid
     private final List<PeakTimeMultiplier> peakTimeMultipliers;
 
     public PricePlan(
@@ -41,8 +50,9 @@ public class PricePlan {
     }
 
     static class PeakTimeMultiplier {
-
+        @NotNull
         DayOfWeek dayOfWeek;
+        @NotNull @Positive
         BigDecimal multiplier;
 
         public PeakTimeMultiplier(DayOfWeek dayOfWeek, BigDecimal multiplier) {

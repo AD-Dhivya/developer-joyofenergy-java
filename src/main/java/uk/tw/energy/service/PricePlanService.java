@@ -39,6 +39,24 @@ public class PricePlanService {
         if (electricityReadings == null || electricityReadings.size() < 2) {
             return BigDecimal.ZERO;
         }
+        // Check for negative readings
+        for (ElectricityReading reading : electricityReadings) {
+            if (reading.reading().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Negative electricity reading found");
+            }
+        }
+        // Check for negative unit rate
+        if (pricePlan.getUnitRate().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Negative unit rate found");
+        }
+        // Check for duplicate timestamps
+        long uniqueTimestamps = electricityReadings.stream()
+            .map(ElectricityReading::time)
+            .distinct()
+            .count();
+        if (uniqueTimestamps < electricityReadings.size()) {
+            throw new IllegalArgumentException("Duplicate timestamps found in readings");
+        }
         List<ElectricityReading> sortedReadings = electricityReadings.stream()
                 .sorted(Comparator.comparing(ElectricityReading::time))
                 .toList();
@@ -52,7 +70,7 @@ public class PricePlanService {
             BigDecimal hours = BigDecimal.valueOf(seconds).divide(BigDecimal.valueOf(3600), 10, RoundingMode.HALF_UP);
             totalEnergy = totalEnergy.add(avgPower.multiply(hours));
         }
-        return totalEnergy.multiply(pricePlan.getUnitRate());
+        return totalEnergy.multiply(pricePlan.getUnitRate()).setScale(2,RoundingMode.HALF_UP);
     }
 
 }

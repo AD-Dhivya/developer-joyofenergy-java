@@ -53,6 +53,24 @@ class MeterReadingControllerValidationTest {
                 .andExpect(jsonPath("$.message").value("Validation Failed"))
                 .andExpect(jsonPath("$.details.smartMeterId").exists());
     }
+    @Test
+    void shouldReturn400WhenSmartMeterIdIsBlank() throws Exception {
+        String invalidJson = """
+            {
+                "smartMeterId": "",
+                "electricityReadings": [
+                    {"time": "2024-06-01T12:00:00Z", "reading": 10.0}
+                ]
+            }
+        """;
+
+        mockMvc.perform(post("/readings/store")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Failed"))
+                .andExpect(jsonPath("$.details.smartMeterId").exists());
+    }
 
     @Test
     void shouldReturn400WhenReadingsListIsEmpty() throws Exception {
@@ -108,4 +126,42 @@ class MeterReadingControllerValidationTest {
                 .andExpect(jsonPath("$.message").value("Validation Failed"))
                 .andExpect(jsonPath("$.details['electricityReadings[0].time']").exists());
     }
+    @Test
+    void shouldReturn400WhenReadingTimeIsInFuture() throws Exception {
+        String invalidJson = """
+            {
+                "smartMeterId": "integration-meter-4",
+                "electricityReadings": [
+                    {"time": "2025-06-29T12:00:00Z","reading": 10.0}
+                ]
+            }
+        """;
+
+        mockMvc.perform(post("/readings/store")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Failed"))
+                .andExpect(jsonPath("$.details['electricityReadings[0].time']").exists());
+    }
+
+    @Test
+    void shouldReturn400WhenDuplicateTimestampsInReadings() throws Exception {
+        String invalidJson = """
+            {
+                "smartMeterId": "integration-meter-duplicate",
+                "electricityReadings": [
+                    {"time": "2024-06-01T12:00:00Z", "reading": 10.0},
+                    {"time": "2024-06-01T12:00:00Z", "reading": 15.0}
+                ]
+            }
+        """;
+
+        mockMvc.perform(post("/readings/store")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Duplicate timestamps found in readings"));
+    }
+
 }
