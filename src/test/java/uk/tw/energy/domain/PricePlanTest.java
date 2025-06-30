@@ -62,4 +62,19 @@ public class PricePlanTest {
 
         assertThat(price).isCloseTo(BigDecimal.TEN, Percentage.withPercentage(1));
     }
+
+    @Test
+    public void testPeakAndOffPeakPricingByHour() {
+        PricePlan.PeakTimeMultiplier peak = new PricePlan.PeakTimeMultiplier(DayOfWeek.MONDAY, 18, 22, BigDecimal.valueOf(2.0));
+        PricePlan.PeakTimeMultiplier offPeak = new PricePlan.PeakTimeMultiplier(DayOfWeek.MONDAY, 0, 18, BigDecimal.valueOf(1.0));
+        PricePlan plan = new PricePlan("test", "supplier", BigDecimal.valueOf(10), List.of(peak, offPeak));
+
+        // 7pm Monday (peak)
+        LocalDateTime peakTime = LocalDateTime.of(2024, 6, 10, 19, 0);
+        assertThat(plan.getPrice(peakTime)).isEqualTo(BigDecimal.valueOf(20));
+
+        // 10am Monday (off-peak)
+        LocalDateTime offPeakTime = LocalDateTime.of(2024, 6, 10, 10, 0);
+        assertThat(plan.getPrice(offPeakTime)).isEqualTo(BigDecimal.valueOf(10));
+    }
 }

@@ -1,6 +1,6 @@
 package uk.tw.energy.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,5 +25,24 @@ public class AccountServiceTest {
     @Test
     public void givenTheSmartMeterIdReturnsThePricePlanId() throws Exception {
         assertThat(accountService.getPricePlanIdForSmartMeterId(SMART_METER_ID)).isEqualTo(PRICE_PLAN_ID);
+    }
+
+    @Test
+    public void shouldReturnAllAccounts() {
+        Map<String, String> accounts = accountService.getAllAccounts();
+        assertThat(accounts).containsEntry(SMART_METER_ID, PRICE_PLAN_ID);
+    }
+
+    @Test
+    public void shouldUpdatePricePlanForSmartMeter() {
+        boolean updated = accountService.updatePricePlanForSmartMeter(SMART_METER_ID, "new-plan-id");
+        assertThat(updated).isTrue();
+        assertThat(accountService.getPricePlanIdForSmartMeterId(SMART_METER_ID)).isEqualTo("new-plan-id");
+    }
+
+    @Test
+    public void shouldNotUpdatePricePlanForUnknownSmartMeter() {
+        boolean updated = accountService.updatePricePlanForSmartMeter("unknown-meter", "plan-x");
+        assertThat(updated).isFalse();
     }
 }

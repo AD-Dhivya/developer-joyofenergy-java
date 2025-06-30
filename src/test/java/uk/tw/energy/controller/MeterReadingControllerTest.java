@@ -90,7 +90,7 @@ public class MeterReadingControllerTest {
 
     @Test
     public void givenMeterIdThatIsNotRecognisedShouldReturnNotFound() {
-        assertThat(meterReadingController.readReadings(SMART_METER_ID).getStatusCode())
+        assertThat(meterReadingController.readReadings(SMART_METER_ID,null,null).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

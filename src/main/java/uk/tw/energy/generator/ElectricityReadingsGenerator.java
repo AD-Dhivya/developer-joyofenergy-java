@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import uk.tw.energy.domain.ElectricityReading;
+import uk.tw.energy.util.DuplicateTimestampValidator;
 
 public class ElectricityReadingsGenerator {
 
@@ -24,6 +25,12 @@ public class ElectricityReadingsGenerator {
         }
 
         readings.sort(Comparator.comparing(ElectricityReading::time));
+        
+        // Validate that generated readings don't contain duplicates
+        if (DuplicateTimestampValidator.hasDuplicateTimestamps(readings)) {
+            throw new IllegalStateException("Generated readings contain duplicate timestamps");
+        }
+        
         return readings;
     }
 }

@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import uk.tw.energy.domain.ElectricityReading;
 import uk.tw.energy.domain.PricePlan;
 import uk.tw.energy.generator.ElectricityReadingsGenerator;
+import uk.tw.energy.util.DuplicateTimestampValidator;
 
 @Configuration
 public class SeedingApplicationDataConfiguration {
@@ -27,9 +29,24 @@ public class SeedingApplicationDataConfiguration {
     @Bean
     public List<PricePlan> pricePlans() {
         final List<PricePlan> pricePlans = new ArrayList<>();
-        pricePlans.add(new PricePlan(MOST_EVIL_PRICE_PLAN_ID, "Dr Evil's Dark Energy", BigDecimal.TEN, emptyList()));
-        pricePlans.add(new PricePlan(RENEWABLES_PRICE_PLAN_ID, "The Green Eco", BigDecimal.valueOf(2), emptyList()));
-        pricePlans.add(new PricePlan(STANDARD_PRICE_PLAN_ID, "Power for Everyone", BigDecimal.ONE, emptyList()));
+        List<PricePlan.PeakTimeMultiplier> evilMultipliers = List.of(
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.MONDAY, 18, 22, BigDecimal.valueOf(2.0)), // Peak 6pm-10pm
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.MONDAY, 0, 18, BigDecimal.valueOf(1.0)),  // Off-peak
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.MONDAY, 22, 24, BigDecimal.valueOf(1.0))  // Off-peak
+        );
+        List<PricePlan.PeakTimeMultiplier> greenMultipliers = List.of(
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.TUESDAY, 7, 10, BigDecimal.valueOf(1.5)), // Peak 7am-10am
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.TUESDAY, 0, 7, BigDecimal.valueOf(1.0)),  // Off-peak
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.TUESDAY, 10, 24, BigDecimal.valueOf(1.0)) // Off-peak
+        );
+        List<PricePlan.PeakTimeMultiplier> standardMultipliers = List.of(
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.WEDNESDAY, 17, 20, BigDecimal.valueOf(1.8)), // Peak 5pm-8pm
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.WEDNESDAY, 0, 17, BigDecimal.valueOf(1.0)),  // Off-peak
+            new PricePlan.PeakTimeMultiplier(DayOfWeek.WEDNESDAY, 20, 24, BigDecimal.valueOf(1.0))  // Off-peak
+        );
+        pricePlans.add(new PricePlan(MOST_EVIL_PRICE_PLAN_ID, "Dr Evil's Dark Energy", BigDecimal.TEN, evilMultipliers));
+        pricePlans.add(new PricePlan(RENEWABLES_PRICE_PLAN_ID, "The Green Eco", BigDecimal.valueOf(2), greenMultipliers));
+        pricePlans.add(new PricePlan(STANDARD_PRICE_PLAN_ID, "Power for Everyone", BigDecimal.ONE, standardMultipliers));
         return pricePlans;
     }
 
@@ -39,7 +56,14 @@ public class SeedingApplicationDataConfiguration {
         final ElectricityReadingsGenerator electricityReadingsGenerator = new ElectricityReadingsGenerator();
         smartMeterToPricePlanAccounts()
                 .keySet()
-                .forEach(smartMeterId -> readings.put(smartMeterId, electricityReadingsGenerator.generate(20)));
+                .forEach(smartMeterId -> {
+                    List<ElectricityReading> meterReadings = electricityReadingsGenerator.generate(20);
+                    // Validate seeded data doesn't contain duplicates
+                    if (DuplicateTimestampValidator.hasDuplicateTimestamps(meterReadings)) {
+                        throw new IllegalStateException("Seeded data for " + smartMeterId + " contains duplicate timestamps");
+                    }
+                    readings.put(smartMeterId, meterReadings);
+                });
         return readings;
     }
 

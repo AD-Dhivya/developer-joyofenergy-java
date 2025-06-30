@@ -5,6 +5,7 @@ import java.util.List;
 import uk.tw.energy.domain.ElectricityReading;
 import uk.tw.energy.domain.MeterReadings;
 import uk.tw.energy.generator.ElectricityReadingsGenerator;
+import uk.tw.energy.util.DuplicateTimestampValidator;
 
 public class MeterReadingsBuilder {
 
@@ -29,6 +30,10 @@ public class MeterReadingsBuilder {
     }
 
     public MeterReadings build() {
+        // Validate that test data doesn't contain duplicates
+        if (!electricityReadings.isEmpty() && DuplicateTimestampValidator.hasDuplicateTimestamps(electricityReadings)) {
+            throw new IllegalStateException("Test data contains duplicate timestamps");
+        }
         return new MeterReadings(smartMeterId, electricityReadings);
     }
 }

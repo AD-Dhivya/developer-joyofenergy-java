@@ -10,7 +10,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import uk.tw.energy.domain.ElectricityReading;
+import uk.tw.energy.domain.Interval;
 import uk.tw.energy.domain.PricePlan;
+import uk.tw.energy.util.IntervalBuilder;
+import uk.tw.energy.util.DuplicateTimestampValidator;
 
 @Service
 public class PricePlanService {
@@ -36,11 +39,25 @@ public class PricePlanService {
     }
 
     private BigDecimal calculateCost(List<ElectricityReading> electricityReadings, PricePlan pricePlan) {
-        final BigDecimal averageReadingInKw = calculateAverageReading(electricityReadings);
-        final BigDecimal usageTimeInHours = calculateUsageTimeInHours(electricityReadings);
-        final BigDecimal energyConsumedInKwH = averageReadingInKw.divide(usageTimeInHours, RoundingMode.HALF_UP);
-        final BigDecimal cost = energyConsumedInKwH.multiply(pricePlan.getUnitRate());
-        return cost;
+        if (electricityReadings == null || electricityReadings.size() < 2) {
+            return BigDecimal.ZERO;
+        }
+        if (DuplicateTimestampValidator.hasDuplicateTimestamps(electricityReadings)) {
+            throw new IllegalArgumentException("Duplicate timestamps found in readings");
+        }
+        List<ElectricityReading> sortedReadings = electricityReadings.stream().sorted(
+                Comparator.comparing(ElectricityReading::time)
+        ).toList();
+        IntervalBuilder intervalBuilder = new IntervalBuilder();
+        BigDecimal totalcost = BigDecimal.ZERO;
+
+       List<Interval> intervalList =  intervalBuilder.buildIntervalList(sortedReadings);
+       for(Interval interval: intervalList){
+        BigDecimal intervalRate = pricePlan.getPrice(interval.buildAvgTime());
+        BigDecimal energy = interval.buildAvgPower().multiply(interval.buildDurationInHours());
+       totalcost = totalcost.add(energy.multiply(intervalRate));
+       }
+        return totalcost.setScale(2,RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateAverageReading(List<ElectricityReading> electricityReadings) {

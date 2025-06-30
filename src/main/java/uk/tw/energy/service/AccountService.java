@@ -15,4 +15,16 @@ public class AccountService {
     public String getPricePlanIdForSmartMeterId(String smartMeterId) {
         return smartMeterToPricePlanAccounts.get(smartMeterId);
     }
+
+    public Map<String, String> getAllAccounts() {
+        return smartMeterToPricePlanAccounts;
+    }
+
+    public boolean updatePricePlanForSmartMeter(String smartMeterId, String newPlanId) {
+        if (!smartMeterToPricePlanAccounts.containsKey(smartMeterId)) {
+            return false;
+        }
+        smartMeterToPricePlanAccounts.put(smartMeterId, newPlanId);
+        return true;
+    }
 }
